@@ -1,8 +1,6 @@
 ## Artificial Intelligence in Transportation
 
-### A collection of AI in transportation research papers with implementations
-
-Inspired by 
+A collection of AI in transportation research papers with implementations inspired by:
 * [Artificial Intelligence in Transportation KDD 2018 Tutorial, London, U.K](https://outreach.didichuxing.com/tutorial/kdd2018/)
 * [Deep Reinforcement Learning with Applications in Transportation](https://outreach.didichuxing.com/tutorial/AAAI2019/)
 
