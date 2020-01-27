@@ -1,4 +1,4 @@
-# Artificial Intelligence in Transportation
+## Artificial Intelligence in Transportation
 
 ### A collection of AI in transportation research papers with implementations
 
