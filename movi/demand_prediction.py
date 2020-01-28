@@ -3,9 +3,45 @@ import argparse
 import pandas as pd
 import numpy as np
 from shapely.geometry import mapping
-from h3 import h3
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 from simobility.utils import read_polygon
+
+
+class Net(nn.Module):
+
+    """
+    The output of the network is a 212×219 image in which each 
+    pixel stands for the predicted number of ride requests in 
+    a given region in the next 30 minutes
+
+    The network inputs six feature planes whose size is 212×219: 
+    actual demand heat maps from the last two steps and constant 
+    planes with sine and cosine of day of week and hour of day
+    """
+
+    def __init__(self):
+        super(Net, self).__init__()
+
+        # The first hidden layer convolves 16 filters of 5×5
+        self.conv1 = nn.Conv2d(6, 16, 5)
+
+        # The second layers convolves 32 filters of 3×3
+        self.conv2 = nn.Conv2d(16, 32, 3)
+
+        # The final layer convolves 1 filter of kernel size 1×1
+        self.conv3 = nn.Conv2d(32, 1, 1)
+
+
+    def forward(self, x):
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        x = F.relu(self.conv3(x))
+
+        return x
 
 
 def rides_to_image(
