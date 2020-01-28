@@ -11,8 +11,8 @@ from simobility.utils import read_polygon
 def rides_to_image(
     pickup_lat: np.array,
     pickup_lon: np.array,
-    bounds: Tuple[Tuple[float]],
-    image_shape: Tuple[int],
+    bounds: Tuple[Tuple[float, float]],
+    image_shape: Tuple[int, int],
 ) -> np.array:
     """ Create NxM (image_shape) image in which each pixel stands for the predicted
     number of ride requests in a given region in the next 30 minutes
