@@ -24,6 +24,8 @@ class Net(nn.Module):
     The network inputs six feature planes whose size is 212×219: 
     actual demand heat maps from the last two steps and constant 
     planes with sine and cosine of day of week and hour of day
+
+    Source: https://www.dropbox.com/s/ujqova12lnklgn5/dynamic-fleet-management-TR.pdf?dl=0
     """
 
     def __init__(self, input_shape):
@@ -112,7 +114,6 @@ def rides_to_image(
 
 
 class DemandDataset(Dataset):
-
     def __init__(self, rides, num, bounds, image_shape):
         super().__init__()
         self.X = []
@@ -120,7 +121,7 @@ class DemandDataset(Dataset):
 
         low_bound = 0
         upper_bound = 10
-        
+
         for i in range(num):
             sample = rides.loc[low_bound:upper_bound]
 
@@ -128,7 +129,7 @@ class DemandDataset(Dataset):
                 sample.pickup_lon, sample.pickup_lat, bounds, image_shape
             )
 
-            sample = rides.loc[upper_bound + 1: upper_bound + 1]
+            sample = rides.loc[upper_bound + 1 : upper_bound + 1]
 
             y = rides_to_image(
                 sample.pickup_lon, sample.pickup_lat, bounds, image_shape
@@ -153,6 +154,44 @@ class DemandDataset(Dataset):
         return x, y
 
 
+def rmse_loss(y_pred, y):
+    return torch.sqrt(torch.mean((y_pred - y) ** 2))
+
+
+def train_model(rides: pd.DataFrame, bounds: Tuple[Tuple(float, float)]):
+
+    image_shape = (212, 219)
+    num_images = 1000
+    batch_size = 5
+    learning_rate = 0.001
+    max_iterations = 250
+
+    dataset = DemandDataset(rides, num_images, bounds, image_shape)
+    data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+    model = Net(image_shape)
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+    criterion = rmse_loss
+
+    for i, (images, labels) in enumerate(data_loader):
+        outputs = model(images)
+
+        labels = labels.view(labels.size(0), -1)
+        loss = criterion(outputs, labels)
+
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        if i == max_iterations:
+            break
+
+        if i % 100 == 0:
+            print(f"Iteration {i}, training loss {loss}")
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Preprocess data")
     parser.add_argument("--demand-file", help="Feather file with trip data")
@@ -165,40 +204,4 @@ if __name__ == "__main__":
     geofence = read_polygon(args.geofence)
     bounds = geofence.bounds
 
-    image_shape = (212, 219)
-
-    dataset = DemandDataset(rides, 20, bounds, image_shape)
-    data_loader = DataLoader(dataset, batch_size=3, shuffle=False)
-
-    model = Net(image_shape)
-
-    for i, (images, labels) in enumerate(data_loader):
-        outputs = model(images)
-
-        break
-    # image = rides_to_image(rides.pickup_lon, rides.pickup_lat, bounds, image_shape)
-
-    # net = Net(image_shape)
-
-    # image1 = rides_to_image(
-    #     rides[:10].pickup_lon, rides[:10].pickup_lat, bounds, image_shape
-    # )
-    # image2 = rides_to_image(
-    #     rides[10:20].pickup_lon, rides[10:20].pickup_lat, bounds, image_shape
-    # )
-
-    # # breakpoint()
-
-    # # data = torch.utils.data.DataLoader([image1, image2])
-    # # print(net, image1.shape)
-
-    # criterion = nn.CrossEntropyLoss()
-
-    # # net(data)
-    # # breakpoint()
-
-    # out = net(torch.tensor(image1.astype(np.float32)).view(-1, 1, 212, 219))
-
-    # print(out.shape)
-
-    # criterion(out, torch.tensor(image2.astype(np.float32)).view(-1, 1, 212, 219))
+    train_model(rides, bounds)
