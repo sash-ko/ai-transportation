@@ -2,11 +2,14 @@ from typing import Tuple
 import argparse
 import pandas as pd
 import numpy as np
+from math import ceil
 from shapely.geometry import mapping
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils.data import Dataset, DataLoader
+from torchvision import transforms
 
 from simobility.utils import read_polygon
 
@@ -23,25 +26,50 @@ class Net(nn.Module):
     planes with sine and cosine of day of week and hour of day
     """
 
-    def __init__(self):
+    def __init__(self, input_shape):
         super(Net, self).__init__()
 
         # The first hidden layer convolves 16 filters of 5×5
-        self.conv1 = nn.Conv2d(6, 16, 5)
+        self.conv1 = nn.Conv2d(1, 16, 5)
+        output_shape = (
+            calc_out_size(input_shape[0], 5),
+            calc_out_size(input_shape[1], 5),
+        )
 
         # The second layers convolves 32 filters of 3×3
         self.conv2 = nn.Conv2d(16, 32, 3)
-
+        output_shape = (
+            calc_out_size(output_shape[0], 3),
+            calc_out_size(output_shape[1], 3),
+        )
         # The final layer convolves 1 filter of kernel size 1×1
         self.conv3 = nn.Conv2d(32, 1, 1)
 
+        output_shape = (
+            calc_out_size(output_shape[0], 1),
+            calc_out_size(output_shape[1], 1),
+        )
+
+        self.fc = nn.Linear(output_shape[0] * output_shape[1], 100)
+
+        # back to the original image size
+        self.fc2 = nn.Linear(100, input_shape[0] * input_shape[1])
 
     def forward(self, x):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
 
+        # flatten
+        x = x.view(x.size(0), -1)
+        x = self.fc(x)
+        x = self.fc2(x)
         return x
+
+
+def calc_out_size(in_size: int, kernel_size: int, padding: int = 0, stride: int = 1):
+    """Calculate output size of any dimention"""
+    return ceil((in_size - kernel_size + 2 * padding) / stride + 1)
 
 
 def rides_to_image(
@@ -83,6 +111,48 @@ def rides_to_image(
     return image
 
 
+class DemandDataset(Dataset):
+
+    def __init__(self, rides, num, bounds, image_shape):
+        super().__init__()
+        self.X = []
+        self.y = []
+
+        low_bound = 0
+        upper_bound = 10
+        
+        for i in range(num):
+            sample = rides.loc[low_bound:upper_bound]
+
+            x = rides_to_image(
+                sample.pickup_lon, sample.pickup_lat, bounds, image_shape
+            )
+
+            sample = rides.loc[upper_bound + 1: upper_bound + 1]
+
+            y = rides_to_image(
+                sample.pickup_lon, sample.pickup_lat, bounds, image_shape
+            )
+
+            low_bound += 1
+            upper_bound += 1
+
+            self.X.append(x)
+            self.y.append(y)
+
+    def __len__(self):
+        return len(self.X)
+
+    def __getitem__(self, idx):
+        x = self.X[idx]
+        y = self.y[idx]
+
+        transform = transforms.Compose([transforms.ToTensor()])
+        x = transform(x.astype(np.float32))
+        y = transform(y.astype(np.float32))
+        return x, y
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Preprocess data")
     parser.add_argument("--demand-file", help="Feather file with trip data")
@@ -97,4 +167,38 @@ if __name__ == "__main__":
 
     image_shape = (212, 219)
 
-    image = rides_to_image(rides.pickup_lon, rides.pickup_lat, bounds, image_shape)
+    dataset = DemandDataset(rides, 20, bounds, image_shape)
+    data_loader = DataLoader(dataset, batch_size=3, shuffle=False)
+
+    model = Net(image_shape)
+
+    for i, (images, labels) in enumerate(data_loader):
+        outputs = model(images)
+
+        break
+    # image = rides_to_image(rides.pickup_lon, rides.pickup_lat, bounds, image_shape)
+
+    # net = Net(image_shape)
+
+    # image1 = rides_to_image(
+    #     rides[:10].pickup_lon, rides[:10].pickup_lat, bounds, image_shape
+    # )
+    # image2 = rides_to_image(
+    #     rides[10:20].pickup_lon, rides[10:20].pickup_lat, bounds, image_shape
+    # )
+
+    # # breakpoint()
+
+    # # data = torch.utils.data.DataLoader([image1, image2])
+    # # print(net, image1.shape)
+
+    # criterion = nn.CrossEntropyLoss()
+
+    # # net(data)
+    # # breakpoint()
+
+    # out = net(torch.tensor(image1.astype(np.float32)).view(-1, 1, 212, 219))
+
+    # print(out.shape)
+
+    # criterion(out, torch.tensor(image2.astype(np.float32)).view(-1, 1, 212, 219))
