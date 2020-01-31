@@ -200,7 +200,16 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    # From the paper (https://www.dropbox.com/s/ujqova12lnklgn5/dynamic-fleet-management-TR.pdf?dl=0)
+    # ..actual demand heat maps from the last two steps and constant 
+    # planes with sine and cosine of day of week and hour of day
+    #
+    # TODO: day of week and hour of day data
+
     rides = pd.read_feather(args.demand_file)
+    # Group rides into 30 minutes buckets
+    rides.pickup_datetime = rides.pickup_datetime.dt.round('30min')
+
     geofence = read_polygon(args.geofence)
     bounds = geofence.bounds
 
