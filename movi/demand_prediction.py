@@ -158,7 +158,7 @@ def rmse_loss(y_pred, y):
     return torch.sqrt(torch.mean((y_pred - y) ** 2))
 
 
-def train_model(rides: pd.DataFrame, bounds: Tuple[Tuple(float, float)]):
+def train_model(rides: pd.DataFrame, bounds: Tuple[Tuple[float, float]]):
 
     image_shape = (212, 219)
     num_images = 1000
