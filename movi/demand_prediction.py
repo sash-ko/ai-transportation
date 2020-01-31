@@ -119,6 +119,10 @@ class DemandDataset(Dataset):
     next N minutes use aggregated demand for the past N minutes.
 
     TODO: add static demand, e.g. average per hour per day per week
+
+    # From the paper (https://www.dropbox.com/s/ujqova12lnklgn5/dynamic-fleet-management-TR.pdf?dl=0)
+    # ..actual demand heat maps from the last two steps and constant
+    # planes with sine and cosine of day of week and hour of day
     """
 
     def __init__(self, rides, bounding_box, image_shape: Tuple[int, int]):
@@ -172,15 +176,9 @@ def rmse_loss(y_pred, y):
     return torch.sqrt(torch.mean((y_pred - y) ** 2))
 
 
-def train_model(rides: pd.DataFrame, bounding_box: Tuple[Tuple[float, float]]):
-
-    image_shape = (212, 219)
-    batch_size = 5
+def train_model(data_loader, image_shape):
     learning_rate = 0.001
-    max_iterations = 250
-
-    dataset = DemandDataset(rides, bounding_box, image_shape)
-    data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    max_iterations = 50
 
     model = Net(image_shape)
 
@@ -206,28 +204,55 @@ def train_model(rides: pd.DataFrame, bounding_box: Tuple[Tuple[float, float]]):
 
     print(f"Training loss {loss}")
 
+    return model
+
+
+def evaluate_model(model: nn.Module, data_loader):
+    # TODO: implement proper validation function
+
+    model.eval()
+
+    with torch.no_grad():
+        for images, labels in data_loader:
+            # TODO: predictions must be positive integers or zeros
+            predicted = model(images)
+
+            labels = labels.view(labels.size(0), -1)
+
+
+def prepare_data_loader(rides, bounding_box, image_shape, batch_size):
+    rides.pickup_datetime = rides.pickup_datetime.dt.round("10min")
+
+    data = DemandDataset(rides, bounding_box, image_shape)
+    data_loader = DataLoader(data, batch_size=batch_size, shuffle=True)
+
+    return data_loader
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Preprocess data")
     # NOTE: demand file preprocessed using scripts from simobility
-    parser.add_argument("--demand-file", help="Feather file with trip data")
+    parser.add_argument("--train-dataset", help="Feather file with trip data")
+    parser.add_argument("--test-dataset", help="Feather file with trip data")
     parser.add_argument(
         "--geofence", help="Geojson file with operational area geometry"
     )
     args = parser.parse_args()
 
-    # From the paper (https://www.dropbox.com/s/ujqova12lnklgn5/dynamic-fleet-management-TR.pdf?dl=0)
-    # ..actual demand heat maps from the last two steps and constant
-    # planes with sine and cosine of day of week and hour of day
-    #
-    # TODO: day of week and hour of day data
-
-    rides = pd.read_feather(args.demand_file)
-    # Group rides into minute buckets
-    rides.pickup_datetime = rides.pickup_datetime.dt.round("10min")
-
     geofence = read_polygon(args.geofence)
-
     bounding_box = geofence.bounds
 
-    train_model(rides, bounding_box)
+    train = pd.read_feather(args.train_dataset)
+    test = pd.read_feather(args.test_dataset)
+
+    batch_size = 5
+    image_shape = (212, 219)
+
+    train_loader = prepare_data_loader(train, bounding_box, image_shape, batch_size)
+    test_loader = prepare_data_loader(test, bounding_box, image_shape, batch_size)
+
+    model = train_model(train_loader, image_shape)
+
+    # torch.save(model.state_dict(), 'demand_model.pth')
+
+    evaluate_model(model, test_loader)
