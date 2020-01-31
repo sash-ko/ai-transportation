@@ -1,3 +1,4 @@
+import logging
 from typing import Tuple
 import argparse
 import pandas as pd
@@ -77,7 +78,7 @@ def calc_out_size(in_size: int, kernel_size: int, padding: int = 0, stride: int 
 def rides_to_image(
     pickup_lat: np.array,
     pickup_lon: np.array,
-    bounds: Tuple[Tuple[float, float]],
+    bounding_box: Tuple[Tuple[float, float]],
     image_shape: Tuple[int, int],
 ) -> np.array:
     """ Create NxM (image_shape) image in which each pixel stands for the predicted
@@ -88,7 +89,7 @@ def rides_to_image(
 
     pickup_lat :
     pickup_lon :
-    bounds : service area bounding box ((min_lon, min_lat), (max_lon, max_lat))
+    bounding_box : service area bounding box ((min_lon, min_lat), (max_lon, max_lat))
     image_shape : 
 
     Returns
@@ -98,8 +99,8 @@ def rides_to_image(
 
     """
 
-    x_axis = np.linspace(bounds[0], bounds[2], image_shape[0])
-    y_axis = np.linspace(bounds[1], bounds[3], image_shape[1])
+    x_axis = np.linspace(bounding_box[0], bounding_box[2], image_shape[0])
+    y_axis = np.linspace(bounding_box[1], bounding_box[3], image_shape[1])
 
     x_pixel_idx = np.digitize(pickup_lon, x_axis)
     y_pixel_idx = np.digitize(pickup_lat, y_axis)
@@ -114,32 +115,45 @@ def rides_to_image(
 
 
 class DemandDataset(Dataset):
-    def __init__(self, rides, num, bounds, image_shape):
+    """Dataset consists of rides "images" - to predict
+    next N minutes use aggregated demand for the past N minutes.
+
+    TODO: add static demand, e.g. average per hour per day per week
+    """
+
+    def __init__(self, rides, bounding_box, image_shape: Tuple[int, int]):
         super().__init__()
+        # current demand
         self.X = []
+        # future demand
         self.y = []
 
-        low_bound = 0
-        upper_bound = 10
+        # to predict demand for the next N minutes
+        # take N minutes of rides before
+        rides_before = None
+        for grp, next_rides in rides.groupby(rides.pickup_datetime):
 
-        for i in range(num):
-            sample = rides.loc[low_bound:upper_bound]
+            if rides_before is not None:
+                x = rides_to_image(
+                    rides_before.pickup_lon,
+                    rides_before.pickup_lat,
+                    bounding_box,
+                    image_shape,
+                )
 
-            x = rides_to_image(
-                sample.pickup_lon, sample.pickup_lat, bounds, image_shape
-            )
+                y = rides_to_image(
+                    next_rides.pickup_lon,
+                    next_rides.pickup_lat,
+                    bounding_box,
+                    image_shape,
+                )
 
-            sample = rides.loc[upper_bound + 1 : upper_bound + 1]
+                self.X.append(x)
+                self.y.append(y)
 
-            y = rides_to_image(
-                sample.pickup_lon, sample.pickup_lat, bounds, image_shape
-            )
+            rides_before = next_rides
 
-            low_bound += 1
-            upper_bound += 1
-
-            self.X.append(x)
-            self.y.append(y)
+        print(f"Dataset size: {len(self.X)}")
 
     def __len__(self):
         return len(self.X)
@@ -158,15 +172,14 @@ def rmse_loss(y_pred, y):
     return torch.sqrt(torch.mean((y_pred - y) ** 2))
 
 
-def train_model(rides: pd.DataFrame, bounds: Tuple[Tuple[float, float]]):
+def train_model(rides: pd.DataFrame, bounding_box: Tuple[Tuple[float, float]]):
 
     image_shape = (212, 219)
-    num_images = 1000
     batch_size = 5
     learning_rate = 0.001
     max_iterations = 250
 
-    dataset = DemandDataset(rides, num_images, bounds, image_shape)
+    dataset = DemandDataset(rides, bounding_box, image_shape)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
     model = Net(image_shape)
@@ -191,9 +204,12 @@ def train_model(rides: pd.DataFrame, bounds: Tuple[Tuple[float, float]]):
         if i % 100 == 0:
             print(f"Iteration {i}, training loss {loss}")
 
+    print(f"Training loss {loss}")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Preprocess data")
+    # NOTE: demand file preprocessed using scripts from simobility
     parser.add_argument("--demand-file", help="Feather file with trip data")
     parser.add_argument(
         "--geofence", help="Geojson file with operational area geometry"
@@ -201,16 +217,17 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # From the paper (https://www.dropbox.com/s/ujqova12lnklgn5/dynamic-fleet-management-TR.pdf?dl=0)
-    # ..actual demand heat maps from the last two steps and constant 
+    # ..actual demand heat maps from the last two steps and constant
     # planes with sine and cosine of day of week and hour of day
     #
     # TODO: day of week and hour of day data
 
     rides = pd.read_feather(args.demand_file)
-    # Group rides into 30 minutes buckets
-    rides.pickup_datetime = rides.pickup_datetime.dt.round('30min')
+    # Group rides into minute buckets
+    rides.pickup_datetime = rides.pickup_datetime.dt.round("10min")
 
     geofence = read_polygon(args.geofence)
-    bounds = geofence.bounds
 
-    train_model(rides, bounds)
+    bounding_box = geofence.bounds
+
+    train_model(rides, bounding_box)
