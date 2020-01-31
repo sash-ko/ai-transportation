@@ -180,6 +180,8 @@ def train_model(data_loader, image_shape):
     learning_rate = 0.001
     max_iterations = 50
 
+    print(f'Max training iterations {max_iterations}')
+
     model = Net(image_shape)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
