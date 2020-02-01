@@ -30,11 +30,16 @@ Propose spatial-temporal demand prediction approach with CNNs only...
     > planes with sine and cosine of day of week and hour of day
 
 There are some other research papers that propose the same, e.g.
-- "Data-DrivenMulti-stepDemandPredictionfor Ride-hailingServices Using Convolutional Neural Network"
+- "Data-DrivenMulti-step Demand Prediction for Ride-hailingServices Using Convolutional Neural Network"
     https://arxiv.org/pdf/1911.03441.pdf
 
 - "Forecasting Taxi Demands with Fully ConvolutionalNetworks and Temporal Guided Embedding"
     https://openreview.net/pdf?id=BygF00DuiX
+
+This paper has more citations:
+
+- "Deep Multi-View Spatial-Temporal Network for Taxi Demand Prediction" 
+    https://www.aaai.org/ocs/index.php/AAAI/AAAI18/paper/viewFile/16069/15978
 
 TODO: look at this topics deeper
 """
