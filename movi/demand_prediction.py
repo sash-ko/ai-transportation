@@ -4,6 +4,7 @@ import argparse
 import pandas as pd
 import numpy as np
 from math import ceil
+from PIL import Image
 from shapely.geometry import mapping
 
 import torch
@@ -160,15 +161,15 @@ class DemandDataset(Dataset):
 
             if rides_before is not None:
                 x = rides_to_image(
-                    rides_before.pickup_lon,
                     rides_before.pickup_lat,
+                    rides_before.pickup_lon,
                     bounding_box,
                     image_shape,
                 )
 
                 y = rides_to_image(
-                    next_rides.pickup_lon,
                     next_rides.pickup_lat,
+                    next_rides.pickup_lon,
                     bounding_box,
                     image_shape,
                 )
@@ -269,6 +270,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     geofence = read_polygon(args.geofence)
+    # lon/lat order
     bounding_box = geofence.bounds
 
     train = pd.read_feather(args.train_dataset)
