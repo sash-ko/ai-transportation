@@ -220,7 +220,7 @@ def train_model(data_loader, image_shape):
         if i % 100 == 0:
             print(f"Iteration {i}, training loss {loss}")
 
-    print(f"Training loss {loss}")
+    print(f"Train loss {loss}")
 
     return model
 
@@ -230,14 +230,18 @@ def evaluate_model(model: nn.Module, data_loader):
 
     # Flatten predicted demand images and calculate RMSE
 
+    criterion = rmse_loss
     model.eval()
 
     with torch.no_grad():
         for images, labels in data_loader:
             # TODO: predictions must be positive integers or zeros
             predicted = model(images)
-
             labels = labels.view(labels.size(0), -1)
+
+            # loss = criterion(predicted, labels)
+
+            # print(f'Test loss {loss}')
 
 
 def prepare_data_loader(rides, bounding_box, image_shape, batch_size):
