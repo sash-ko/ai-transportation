@@ -120,9 +120,15 @@ def rides_to_image(
     number of pickups in a an area defined by the cell
 
     """
+    
+    min_x = min(bounding_box[0], bounding_box[2])
+    max_x = max(bounding_box[0], bounding_box[2])
 
-    x_axis = np.linspace(bounding_box[0], bounding_box[2], image_shape[0])
-    y_axis = np.linspace(bounding_box[1], bounding_box[3], image_shape[1])
+    min_y = min(bounding_box[1], bounding_box[3])
+    max_y = max(bounding_box[1], bounding_box[3])
+
+    x_axis = np.linspace(min_x, max_x, image_shape[0])
+    y_axis = np.linspace(min_y, max_y, image_shape[1])
 
     x_pixel_idx = np.digitize(pickup_lon, x_axis)
     y_pixel_idx = np.digitize(pickup_lat, y_axis)
