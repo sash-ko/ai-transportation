@@ -14,23 +14,39 @@ from torchvision import transforms
 
 from simobility.utils import read_polygon
 
+"""
 
-class Net(nn.Module):
+Paper "MOVI: A Model-Free Approach to Dynamic Fleet Management": 
+https://www.dropbox.com/s/ujqova12lnklgn5/dynamic-fleet-management-TR.pdf?dl=0
+
+Propose spatial-temporal demand prediction approach with CNNs only...
+
+    > The output of the network is a 212×219 image in which each 
+    > pixel stands for the predicted number of ride requests in 
+    > a given region in the next 30 minutes
+
+    > The network inputs six feature planes whose size is 212×219: 
+    > actual demand heat maps from the last two steps and constant 
+    > planes with sine and cosine of day of week and hour of day
+
+There are some other research papers that propose the same, e.g.
+- "Data-DrivenMulti-stepDemandPredictionfor Ride-hailingServices Using Convolutional Neural Network"
+    https://arxiv.org/pdf/1911.03441.pdf
+
+- "Forecasting Taxi Demands with Fully ConvolutionalNetworks and Temporal Guided Embedding"
+    https://openreview.net/pdf?id=BygF00DuiX
+
+TODO: look at this topics deeper
+"""
+
+class DemandNet(nn.Module):
 
     """
-    The output of the network is a 212×219 image in which each 
-    pixel stands for the predicted number of ride requests in 
-    a given region in the next 30 minutes
-
-    The network inputs six feature planes whose size is 212×219: 
-    actual demand heat maps from the last two steps and constant 
-    planes with sine and cosine of day of week and hour of day
-
-    Source: https://www.dropbox.com/s/ujqova12lnklgn5/dynamic-fleet-management-TR.pdf?dl=0
+    Spatial-temporal demand prediction
     """
 
     def __init__(self, input_shape):
-        super(Net, self).__init__()
+        super(DemandNet, self).__init__()
 
         # The first hidden layer convolves 16 filters of 5×5
         self.conv1 = nn.Conv2d(1, 16, 5)
@@ -182,7 +198,7 @@ def train_model(data_loader, image_shape):
 
     print(f'Max training iterations {max_iterations}')
 
-    model = Net(image_shape)
+    model = DemandNet(image_shape)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -211,6 +227,8 @@ def train_model(data_loader, image_shape):
 
 def evaluate_model(model: nn.Module, data_loader):
     # TODO: implement proper validation function
+
+    # Flatten predicted demand images and calculate RMSE
 
     model.eval()
 
