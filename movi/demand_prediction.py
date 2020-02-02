@@ -123,8 +123,8 @@ class DemandDataset(Dataset):
 
             if rides_before is not None:
                 x = points_per_cell(
-                    rides_before.pickup_lat,
                     rides_before.pickup_lon,
+                    rides_before.pickup_lat,
                     bounding_box,
                     image_shape,
                 )
@@ -133,8 +133,8 @@ class DemandDataset(Dataset):
                 # im.convert('L').save('111.png')
 
                 y = points_per_cell(
-                    next_rides.pickup_lat,
                     next_rides.pickup_lon,
+                    next_rides.pickup_lat,
                     bounding_box,
                     image_shape,
                 )
