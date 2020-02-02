@@ -6,6 +6,7 @@ import numpy as np
 from math import ceil
 from PIL import Image
 from shapely.geometry import mapping
+from tools import points_per_cell
 
 import torch
 import torch.nn as nn
@@ -97,51 +98,6 @@ def calc_out_size(in_size: int, kernel_size: int, padding: int = 0, stride: int 
     return ceil((in_size - kernel_size + 2 * padding) / stride + 1)
 
 
-def rides_to_image(
-    pickup_lat: np.array,
-    pickup_lon: np.array,
-    bounding_box: Tuple[Tuple[float, float]],
-    image_shape: Tuple[int, int],
-) -> np.array:
-    """ Create NxM (image_shape) image in which each pixel stands for the predicted
-    number of ride requests in a given region in the next 30 minutes
-
-    Params
-    ------
-
-    pickup_lat :
-    pickup_lon :
-    bounding_box : service area bounding box ((min_lon, min_lat), (max_lon, max_lat))
-    image_shape : 
-
-    Returns
-
-    image : NxM (image_shape) array in which each element is a total 
-    number of pickups in a an area defined by the cell
-
-    """
-    
-    min_x = min(bounding_box[0], bounding_box[2])
-    max_x = max(bounding_box[0], bounding_box[2])
-
-    min_y = min(bounding_box[1], bounding_box[3])
-    max_y = max(bounding_box[1], bounding_box[3])
-
-    x_axis = np.linspace(min_x, max_x, image_shape[0])
-    y_axis = np.linspace(min_y, max_y, image_shape[1])
-
-    x_pixel_idx = np.digitize(pickup_lon, x_axis)
-    y_pixel_idx = np.digitize(pickup_lat, y_axis)
-
-    image, _, _ = np.histogram2d(
-        x_pixel_idx,
-        y_pixel_idx,
-        bins=image_shape,
-        range=[[0, image_shape[0]], [0, image_shape[1]]],
-    )
-    return image
-
-
 class DemandDataset(Dataset):
     """Dataset consists of rides "images" - to predict
     next N minutes use aggregated demand for the past N minutes.
@@ -166,14 +122,17 @@ class DemandDataset(Dataset):
         for grp, next_rides in rides.groupby(rides.pickup_datetime):
 
             if rides_before is not None:
-                x = rides_to_image(
+                x = points_per_cell(
                     rides_before.pickup_lat,
                     rides_before.pickup_lon,
                     bounding_box,
                     image_shape,
                 )
 
-                y = rides_to_image(
+                # im = Image.fromarray(255 - (x * (255 / x.max())).astype(np.int32))
+                # im.convert('L').save('111.png')
+
+                y = points_per_cell(
                     next_rides.pickup_lat,
                     next_rides.pickup_lon,
                     bounding_box,
