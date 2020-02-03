@@ -14,6 +14,17 @@ from torchvision import transforms
 from simobility.utils import read_polygon
 from demand_net import DemandNet
 
+"""
+Based on research paper "MOVI: A Model-Free Approach to Dynamic Fleet Management"
+
+Predict demand using CNN where input is total number pickups per cell of a city grid
+("demand image").
+
+TODO: change input a 3D matrix where each image is a demand aggregation for N minuts bucket
+in order to be able to catch some temporal information. Similar to the approach for following
+research paper: https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf
+"""
+
 
 class DemandDataset(Dataset):
     """Dataset consists of rides "images" - to predict
@@ -45,9 +56,6 @@ class DemandDataset(Dataset):
                     bounding_box,
                     image_shape,
                 )
-
-                # im = Image.fromarray(255 - (x * (255 / x.max())).astype(np.int32))
-                # im.convert('L').save('111.png')
 
                 y = points_per_cell(
                     next_rides.pickup_lon,

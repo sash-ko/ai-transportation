@@ -8,7 +8,7 @@ from math import ceil
 Paper "MOVI: A Model-Free Approach to Dynamic Fleet Management": 
 https://www.dropbox.com/s/ujqova12lnklgn5/dynamic-fleet-management-TR.pdf?dl=0
 
-Propose spatial-temporal demand prediction approach with CNNs only...
+proposes spatial-temporal demand prediction approach with CNNs only...
 
     > The output of the network is a 212×219 image in which each 
     > pixel stands for the predicted number of ride requests in 
