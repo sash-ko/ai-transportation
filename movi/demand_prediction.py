@@ -94,7 +94,7 @@ def train_model(data_loader, image_shape):
     print_every = 25
 
     # NOTE: used to speedup code testing (not model testing)
-    max_iterations = 50
+    max_iterations = 150
     print(f'Max training iterations {max_iterations}')
 
     model = DemandNet(image_shape)
@@ -104,7 +104,7 @@ def train_model(data_loader, image_shape):
     criterion = rmse_loss
 
     for epoch in range(epochs):
-        print(f'{epoch+1} pass through the full training set')
+        print(f'\n{epoch+1} pass through the full training set')
 
         train_loss = []
         for i, (images, labels) in enumerate(data_loader):
@@ -123,32 +123,32 @@ def train_model(data_loader, image_shape):
                 break
 
             if i and i % print_every == 0:
-                print(f'Epoch {epoch}, iteration {i}, RMSE={np.mean(train_loss):.4}')
+                print(f'Epoch {epoch+1}, iteration {i}, RMSE={np.mean(train_loss):.4}')
 
     return model
 
 
 def evaluate_model(model: nn.Module, data_loader):
-    # TODO: implement proper validation function
-
-    # Flatten predicted demand images and calculate RMSE
-
     criterion = rmse_loss
     model.eval()
+    test_loss = []
 
     with torch.no_grad():
-        for images, labels in data_loader:
-            # TODO: predictions must be positive integers or zeros
+        for i, (images, labels) in enumerate(data_loader):
             predicted = model(images)
+
             labels = labels.view(labels.size(0), -1)
+            loss = criterion(predicted, labels)
 
-            # loss = criterion(predicted, labels)
+            test_loss.append(loss.item())
 
-            # print(f'Test loss {loss}')
+    print(f'\nTest RMSE={np.mean(test_loss):.4}, RMSE std={np.std(test_loss):.4}')
 
 
 def prepare_data_loader(rides, bounding_box, image_shape, batch_size):
     rides.pickup_datetime = rides.pickup_datetime.dt.round("10min")
+
+    #TODO: preprocess data!
 
     data = DemandDataset(rides, bounding_box, image_shape)
     data_loader = DataLoader(data, batch_size=batch_size, shuffle=True)
