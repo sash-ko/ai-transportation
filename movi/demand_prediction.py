@@ -90,8 +90,11 @@ def rmse_loss(y_pred, y):
 
 def train_model(data_loader, image_shape):
     learning_rate = 0.001
-    max_iterations = 50
+    epochs = 3
+    print_every = 25
 
+    # NOTE: used to speedup code testing (not model testing)
+    max_iterations = 50
     print(f'Max training iterations {max_iterations}')
 
     model = DemandNet(image_shape)
@@ -100,23 +103,27 @@ def train_model(data_loader, image_shape):
 
     criterion = rmse_loss
 
-    for i, (images, labels) in enumerate(data_loader):
-        outputs = model(images)
+    for epoch in range(epochs):
+        print(f'{epoch+1} pass through the full training set')
 
-        labels = labels.view(labels.size(0), -1)
-        loss = criterion(outputs, labels)
+        train_loss = []
+        for i, (images, labels) in enumerate(data_loader):
+            outputs = model(images)
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+            labels = labels.view(labels.size(0), -1)
+            loss = criterion(outputs, labels)
 
-        if i == max_iterations:
-            break
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-        if i % 100 == 0:
-            print(f"Iteration {i}, training loss {loss}")
+            train_loss.append(loss.item())
 
-    print(f"Train loss {loss}")
+            if i == max_iterations:
+                break
+
+            if i and i % print_every == 0:
+                print(f'Epoch {epoch}, iteration {i}, RMSE={np.mean(train_loss):.4}')
 
     return model
 
