@@ -18,9 +18,15 @@ State:
         - destination
     )
 
-Action:
-    move n vehicles from one region to another one
-    u(t, i, j) - u vehicles from i to j at time t
+Actions:
+    >> Our  DQN  policy  learns  the  optimal  dispatch actions for individual
+    >> vehicles. To do so, we suppose that all idle vehicles sequentially  decide
+    >> where to go within a time  slot t.  Each vehicle’s  decision  accounts
+    >> for the current locations  of  all other  vehicles, but does  not
+    >> anticipate their future  actions. Since  drivers  have an app that
+    >> updates  with other  drivers’ actions in real time, and it is unlikely
+    >> that drivers would make decisions at the exact same times, they would have
+    >> access to this knowledge
 
 Reward:
     >> To  define reward, we wish  to  minimize  three  performance  criteria:  the  number  
