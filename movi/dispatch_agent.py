@@ -43,3 +43,27 @@ Reward:
     vehicle pickups up at time t and the total dispatch time c_t.
 
 """
+
+
+"""
+ARCHITECTURE
+
+Models
+
+q_network and q_network_target - dispatch network
+demand_model
+supply_model
+
+Dispatch network
+
+INPUT
+51x51 size image with n-th vehicle in the middle
+- predicted demand 51x51 matrix
+- predicted supply 51x51x3 - number of available vehicles in 0, 15 and 30 minutes
+- fleet state - number of idling vehicles in each region
+
+OUTPUT
+    15x15 matrix of actions: maximum 7 moves up, down, left or right
+
+
+"""
