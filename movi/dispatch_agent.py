@@ -75,7 +75,7 @@ from dispatch_model import DispatchNet
 
 class Agent:
 
-    def __init__(self, dispatcher, environment, demand_model, supply_model):
+    def __init__(self, environment, demand_model, supply_model):
         super().__init__()
 
         seed = 234
@@ -99,3 +99,15 @@ class Agent:
             return np.argmax(action_values.cpu().data.numpy())
         else:
             return np.random.choice(np.arange(self.action_size))
+
+
+    def predict_demand(self):
+        pass
+
+    def predict_supply(self):
+        pass
+
+    def create_input_features(self):
+        demand = self.predict_demand()
+        supply = self.predict_supply()
+        fleet_state = self.environment.fleet_state()
