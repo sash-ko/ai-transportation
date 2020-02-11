@@ -68,14 +68,34 @@ OUTPUT
 
 """
 
+import numpy as np
+import torch
 from dispatch_model import DispatchNet
 
 
-def train_model(dispatcher, environment, demand_model, supply_model):
+class Agent:
 
-    seed = 234
-    action_size = 15 * 15
-    state_size = 51 * 51
+    def __init__(self, dispatcher, environment, demand_model, supply_model):
+        super().__init__()
 
-    qnetwork = DispatchNet(state_size, action_size, seed)
-    qnetwork_target = DispatchNet(state_size, action_size, seed)
+        seed = 234
+        self.action_size = 15 * 15
+        self.state_size = 51 * 51
+
+        self.qnetwork = DispatchNet(self.state_size, self.action_size, seed)
+        self.qnetwork_target = DispatchNet(self.state_size, self.action_size, seed)
+
+    def act(self, state):
+        self.qnetwork.eval()
+
+        with torch.no_grad():
+            action_values = self.qnetwork(state)
+
+        self.qnetwork.train()
+
+        # Epsilon-greedy action selection
+        eps = 0.01
+        if np.random() > eps:
+            return np.argmax(action_values.cpu().data.numpy())
+        else:
+            return np.random.choice(np.arange(self.action_size))
