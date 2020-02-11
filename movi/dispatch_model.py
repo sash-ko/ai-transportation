@@ -14,7 +14,7 @@ class DispatchNet(nn.Module):
         self.conv4 = nn.Conv2d(64, 128, 1)
         self.conv5 = nn.Conv2d(128, 1, 1)
 
-        self.fc = nn.Linear(15 * 15, 21 * 21)
+        self.fc = nn.Linear(15 * 15, 15 * 15)
 
     def forward(self, x):
         x = F.relu(self.conv1(x))

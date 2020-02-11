@@ -67,3 +67,15 @@ OUTPUT
 
 
 """
+
+from dispatch_model import DispatchNet
+
+
+def train_model(dispatcher, environment, demand_model, supply_model):
+
+    seed = 234
+    action_size = 15 * 15
+    state_size = 51 * 51
+
+    qnetwork = DispatchNet(state_size, action_size, seed)
+    qnetwork_target = DispatchNet(state_size, action_size, seed)
