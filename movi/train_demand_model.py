@@ -88,15 +88,9 @@ def rmse_loss(y_pred, y):
     return torch.sqrt(torch.mean((y_pred - y) ** 2))
 
 
-def train_model(data_loader, image_shape):
-    learning_rate = 0.001
-    epochs = 3
+def train_model(data_loader, image_shape, epochs, learning_rate):
     print_every = 25
-
-    # NOTE: used to speedup code testing (not model testing)
-    max_iterations = 150
-    print(f'Max training iterations {max_iterations}')
-
+    
     model = DemandNet(image_shape)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -118,9 +112,6 @@ def train_model(data_loader, image_shape):
             optimizer.step()
 
             train_loss.append(loss.item())
-
-            if i == max_iterations:
-                break
 
             if i and i % print_every == 0:
                 print(f'Epoch {epoch+1}, iteration {i}, RMSE={np.mean(train_loss):.4}')
@@ -173,13 +164,16 @@ if __name__ == "__main__":
     train = pd.read_feather(args.train_dataset)
     test = pd.read_feather(args.test_dataset)
 
+    # https://towardsdatascience.com/epoch-vs-iterations-vs-batch-size-4dfb9c7ce9c9
     batch_size = 5
+    epochs = 3
     image_shape = (212, 219)
+    learning_rate = 0.001
 
     train_loader = prepare_data_loader(train, bounding_box, image_shape, batch_size)
     test_loader = prepare_data_loader(test, bounding_box, image_shape, batch_size)
 
-    model = train_model(train_loader, image_shape)
+    model = train_model(train_loader, image_shape, epochs, learning_rate)
 
     # torch.save(model.state_dict(), 'demand_model.pth')
 
