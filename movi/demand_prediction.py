@@ -5,14 +5,15 @@ import pandas as pd
 import numpy as np
 from shapely.geometry import mapping
 from tools import points_per_cell
+import random
 
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, TensorDataset
 from torchvision import transforms
 
 from simobility.utils import read_polygon
-from demand_net import DemandNet
+from demand_net import DemandNetMOVI
 
 """
 Based on research paper "MOVI: A Model-Free Approach to Dynamic Fleet Management"
@@ -25,6 +26,11 @@ in order to be able to catch some temporal information. Similar to the approach 
 research paper: https://storage.googleapis.com/deepmind-media/dqn/DQNNaturePaper.pdf
 """
 
+torch.manual_seed(42)
+torch.cuda.manual_seed(42)
+np.random.seed(42)
+random.seed(42)
+torch.backends.cudnn.deterministic = True
 
 class DemandDataset(Dataset):
     """Dataset consists of rides "images" - to predict
@@ -181,57 +187,81 @@ class DemandDatasetMOVI(TensorDataset):
         sh = transform(sh.astype(np.float32))
         return x,cd,sd,ch,sh,y
 
-class DemandNetMOVI(nn.Module):
+class DemandDatasetMOVIVariablePlanes(TensorDataset):
+    def __init__(self, rides, bounding_box, image_shape: Tuple[int, int]):
+        super().__init__()
+        # current demand
+        self.X = []
+        # future demand
+        self.y = []
+        self.cd = []
+        self.sd = []
+        self.ch = []
+        self.sh = []
 
-    """
-    Spatial-temporal demand prediction
-    """
+        # to predict demand for the next N minutes
+        # take N minutes of rides before
+        rides_before = None
+        for grp, next_rides in rides.groupby(rides.pickup_datetime):
+            
+            if rides_before is not None:
+                x = points_per_cell(
+                    rides_before.pickup_lon,
+                    rides_before.pickup_lat,
+                    bounding_box,
+                    image_shape,
+                )
 
-    def __init__(self, input_shape):
-        super(DemandNet, self).__init__()
+                y = points_per_cell(
+                    next_rides.pickup_lon,
+                    next_rides.pickup_lat,
+                    bounding_box,
+                    image_shape,
+                )
+                
+                t = pd.to_datetime(rides_before.iloc[0].pickup_datetime)
+                # cos of the pickup's hour
+                cos_h_pl = np.array([[np.cos(t.hour) if c else 0 for c in row] for row in x])
+                # sin of the pickup's hour 
+                sin_h_pl = np.array([[np.sin(t.hour) if c else 0 for c in row] for row in x])
+                # cos of the pickup's day 
+                cos_d_pl = np.array([[np.cos(t.weekday()) if c else 0 for c in row] for row in x])
+                # sin of the pickup's day
+                sin_d_pl = np.array([[np.sin(t.weekday()) if c else 0 for c in row] for row in x])
 
-        # The first hidden layer convolves 16 filters of 5×5
-        self.conv1 = nn.Conv2d(5, 16, 5)
-        output_shape = (
-            calc_out_size(input_shape[0], 5),
-            calc_out_size(input_shape[1], 5),
-        )
+                self.X.append(x)
+                self.cd.append(cos_d_pl)
+                self.sd.append(sin_d_pl)
+                self.ch.append(cos_h_pl)
+                self.sh.append(sin_h_pl)
+                self.y.append(y)
+                
 
-        # The second layers convolves 32 filters of 3×3
-        self.conv2 = nn.Conv2d(16, 32, 3)
-        output_shape = (
-            calc_out_size(output_shape[0], 3),
-            calc_out_size(output_shape[1], 3),
-        )
-        # The final layer convolves 1 filter of kernel size 1×1
-        self.conv3 = nn.Conv2d(32, 1, 1)
+            rides_before = next_rides
+
+        print(f"Dataset size: {len(self.X)}")
         
-        self.seq = nn.Sequential(
-            self.conv1,
-            self.conv2,
-            self.conv3
-        )
+    def __len__(self):
+        return len(self.X)
 
-        output_shape = (
-            calc_out_size(output_shape[0], 1),
-            calc_out_size(output_shape[1], 1),
-        )
-
-        self.fc = nn.Linear(output_shape[0] * output_shape[1], 100)
-
-        # back to the original image size
-        self.fc2 = nn.Linear(100, input_shape[0] * input_shape[1])
-
-    def forward(self, x, cd, sd, ch, sh):
-        # Combine the data in 5 layers for the input
-        a = self.seq(cat((x,cd, sd, ch, sh),1))
-        x = F.relu(a)
-        # flatten
-        x = x.view(x.size(0), -1)
-        x = self.fc(x)
-        x = self.fc2(x)
+    def __getitem__(self, idx):
+        x = self.X[idx]
+        y = self.y[idx]
+        cd = self.cd[idx]
+        sd = self.sd[idx]
+        ch = self.ch[idx]
+        sh = self.sh[idx]
         
-        return x
+
+        transform = transforms.Compose([transforms.ToTensor()])
+        
+        x = transform(x.astype(np.float32))
+        y = transform(y.astype(np.float32))
+        cd = transform(cd.astype(np.float32))
+        sd = transform(sd.astype(np.float32))
+        ch = transform(ch.astype(np.float32))
+        sh = transform(sh.astype(np.float32))
+        return x,cd,sd,ch,sh,y
     
 def rmse_loss(y_pred, y):
     return torch.sqrt(torch.mean((y_pred - y) ** 2))
@@ -296,7 +326,7 @@ def evaluate_model(model: nn.Module, data_loader):
 
 def train_model_MOVI(data_loader, image_shape):
     learning_rate = 0.001
-    epochs = 3
+    epochs = 10
     print_every = 25
 
     # NOTE: used to speedup code testing (not model testing)
@@ -352,11 +382,15 @@ def evaluate_model_MOVI(model: nn.Module, data_loader):
     print(f'\nTest RMSE={np.mean(test_loss):.4}, RMSE std={np.std(test_loss):.4}')
     
 def prepare_data_loader(rides, bounding_box, image_shape, batch_size):
+    rides.rename(columns={'tpep_pickup_datetime':'pickup_datetime','pickup_latitude':
+                          'pickup_lat', 'pickup_longitude': 'pickup_lon'}, inplace=True)
+    rides.pickup_datetime = pd.to_datetime(rides['pickup_datetime'])
+
     rides.pickup_datetime = rides.pickup_datetime.dt.round("10min")
 
     #TODO: preprocess data!
 
-    data = DemandDataset(rides, bounding_box, image_shape)
+    data = DemandDatasetMOVIVariablePlanes(rides, bounding_box, image_shape)
     data_loader = DataLoader(data, batch_size=batch_size, shuffle=True)
 
     return data_loader
@@ -366,7 +400,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Preprocess data")
     # NOTE: demand file preprocessed using scripts from simobility
     parser.add_argument("--train-dataset", help="Feather file with trip data")
-    parser.add_argument("--test-dataset", help="Feather file with trip data")
+    #parser.add_argument("--test-dataset", help="Feather file with trip data")
     parser.add_argument(
         "--geofence", help="Geojson file with operational area geometry"
     )
@@ -376,17 +410,17 @@ if __name__ == "__main__":
     # lon/lat order
     bounding_box = geofence.bounds
 
-    train = pd.read_feather(args.train_dataset)
-    test = pd.read_feather(args.test_dataset)
+    train = pd.read_feather(args.train_dataset, use_threads=True)
+    #test = pd.read_feather(args.test_dataset)
 
-    batch_size = 5
+    batch_size = 10
     image_shape = (212, 219)
 
     train_loader = prepare_data_loader(train, bounding_box, image_shape, batch_size)
-    test_loader = prepare_data_loader(test, bounding_box, image_shape, batch_size)
+    #test_loader = prepare_data_loader(test, bounding_box, image_shape, batch_size)
 
-    model = train_model(train_loader, image_shape)
+    model = train_model_MOVI(train_loader, image_shape)
 
-    # torch.save(model.state_dict(), 'demand_model.pth')
+    torch.save(model.state_dict(), 'demand_model_212_219_variable.pth')
 
-    evaluate_model(model, test_loader)
+    #evaluate_model(model, test_loader)
