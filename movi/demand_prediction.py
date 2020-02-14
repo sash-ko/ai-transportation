@@ -13,7 +13,7 @@ from torch.utils.data import Dataset, DataLoader, TensorDataset
 from torchvision import transforms
 
 from simobility.utils import read_polygon
-from demand_net import DemandNetMOVI
+from demand_net import DemandNetMOVI, DemandNet
 
 """
 Based on research paper "MOVI: A Model-Free Approach to Dynamic Fleet Management"
@@ -390,7 +390,7 @@ def prepare_data_loader(rides, bounding_box, image_shape, batch_size):
 
     #TODO: preprocess data!
 
-    data = DemandDatasetMOVIVariablePlanes(rides, bounding_box, image_shape)
+    data = DemandDataset(rides, bounding_box, image_shape)
     data_loader = DataLoader(data, batch_size=batch_size, shuffle=True)
 
     return data_loader
@@ -419,8 +419,8 @@ if __name__ == "__main__":
     train_loader = prepare_data_loader(train, bounding_box, image_shape, batch_size)
     #test_loader = prepare_data_loader(test, bounding_box, image_shape, batch_size)
 
-    model = train_model_MOVI(train_loader, image_shape)
+    model = train_model(train_loader, image_shape)
 
-    torch.save(model.state_dict(), 'demand_model_212_219_variable.pth')
+    torch.save(model.state_dict(), 'demand_model_212_219_base.pth')
 
     #evaluate_model(model, test_loader)
