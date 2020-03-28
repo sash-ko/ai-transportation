@@ -31,6 +31,7 @@ def points_per_cell(
     x_pixel_idx = np.digitize(x_vals, x_axis)
     y_pixel_idx = np.digitize(y_vals, y_axis)
 
+
     image, _, _ = np.histogram2d(
         x_pixel_idx,
         y_pixel_idx,
