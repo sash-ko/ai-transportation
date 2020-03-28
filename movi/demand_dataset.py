@@ -1,3 +1,4 @@
+import logging
 from typing import Tuple
 import numpy as np
 from torch.utils.data import Dataset
@@ -49,7 +50,7 @@ class DemandDataset(Dataset):
 
             rides_before = next_rides
 
-        print(f"Dataset size: {len(self.X)}")
+        logging.info(f"Dataset size: {len(self.X)}")
 
     def __len__(self):
         return len(self.X)
