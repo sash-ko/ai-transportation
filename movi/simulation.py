@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 import math
 import argparse
@@ -9,6 +10,7 @@ from simobility.core import BookingService
 from simobility.core import Dispatcher
 from simobility.core.tools import ReplayDemand
 from simobility.core import Booking
+from simobility.core import loggers
 
 
 def create_demand_model(config, clock):
@@ -76,6 +78,10 @@ if __name__ == "__main__":
 
     config = create_config(args.demand_file)
 
+    loggers.configure_root_logger()
+    simulation_logs = loggers.InMemoryLogHandler()
+    _ = loggers.get_simobility_logger(simulation_logs)
+
     clock = Clock(
         time_step=config["simulation"]["clock_step"],
         time_unit="s",
@@ -104,6 +110,7 @@ if __name__ == "__main__":
     taxi_service = TaxiService(clock, dispatcher, router)
 
     num_steps = clock.time_to_clock_time(config["simulation"]["duration"], "m")
+    logging.info(f'Simulation steps: {num_steps} (one step = {clock.time_step}{clock.time_unit})')
 
     for i in range(num_steps):
 
@@ -118,3 +125,6 @@ if __name__ == "__main__":
         dispatcher.step()
 
         clock.tick()
+
+    # print("\nSimulation state changes log:")
+    # print(simulation_logs.logs)
