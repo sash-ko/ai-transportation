@@ -70,8 +70,6 @@ class PointGridDataset(Dataset):
         x = self.X[idx]
         y = self.y[idx]
         
-        breakpoint()
-
         transform = transforms.Compose([transforms.ToTensor()])
         x = transform(x.astype(np.float32))
         y = transform(y.astype(np.float32))
