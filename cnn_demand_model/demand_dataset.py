@@ -2,6 +2,7 @@ import logging
 from typing import Tuple
 import numpy as np
 import pandas as pd
+import torch
 from torch.utils.data import Dataset
 from torchvision import transforms
 
@@ -70,7 +71,6 @@ class PointGridDataset(Dataset):
         x = self.X[idx]
         y = self.y[idx]
         
-        transform = transforms.Compose([transforms.ToTensor()])
-        x = transform(x.astype(np.float32))
-        y = transform(y.astype(np.float32))
+        x = torch.from_numpy(x.astype(np.float32))
+        y = torch.from_numpy(y.astype(np.float32))
         return x, y
