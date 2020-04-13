@@ -1,5 +1,5 @@
 import logging
-
+import re
 import argparse
 import pandas as pd
 from torch.utils.data import DataLoader
@@ -14,8 +14,15 @@ def rmse_loss(y_pred, y):
 
 
 if __name__ == "__main__":
+    # Example:
+    # python cnn_demand_model/train_model.py --dataset data/train_sample.feather 
+    #   --value-range="((-74.0238037109375, -73.91867828369139), (40.6966552734375, 40.81862258911133))"
+
     parser = argparse.ArgumentParser(description="Model training parameters")
     parser.add_argument("--dataset", help="feather file with points")
+    parser.add_argument(
+        "--value-range", help="Bounding box - (min_lon, max_lon, min_lat, max_lat)"
+    )
     args = parser.parse_args()
 
     #### Params
@@ -32,11 +39,16 @@ if __name__ == "__main__":
         columns=["pickup_lon", "pickup_lat", "pickup_datetime"],
         use_threads=False,
     )
+    print(f'Dataset shape {data.shape}')
+
     data["time"] = data.pickup_datetime.dt.round(agg_by)
     data["x"] = data.pickup_lon
     data["y"] = data.pickup_lat
 
-    value_range = ((data.x.min(), data.x.max()), (data.y.min(), data.y.max()))
+    # parse value range from command line
+    min_lon, max_lon, min_lat, max_lat = re.findall("[-]?\d+.\d+", args.value_range)
+    value_range = ((float(min_lon), float(max_lon)), (float(min_lat), float(max_lat)))
+    print(f'Bounding box: {value_range}')
 
     dataset = PointGridDataset(data, value_range, grid_size, n_steps=1)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
