@@ -20,7 +20,7 @@ class PointGridDataset(Dataset):
         points: pd.DataFrame,
         value_range: Tuple[Tuple[float, float], Tuple[float, float]],
         grid_size: Tuple[int, int],
-        n_steps: int = 1
+        n_steps: int = 1,
     ):
         """
         Params
@@ -50,9 +50,10 @@ class PointGridDataset(Dataset):
 
         current_X = []
         for grp, point_grp in points.groupby(["time"]):
-            hist, _, _ = np.histogram2d(
-                point_grp.x, point_grp.y, bins=grid_size, range=value_range
-            )
+            x = point_grp.x.values
+            y = point_grp.y.values
+            hist, _, _ = np.histogram2d(x, y, bins=grid_size, range=value_range)
+
             if len(current_X) < n_steps:
                 current_X.append(hist)
             else:
@@ -70,7 +71,7 @@ class PointGridDataset(Dataset):
     def __getitem__(self, idx):
         x = self.X[idx]
         y = self.y[idx]
-        
+
         x = torch.from_numpy(x.astype(np.float32))
         y = torch.from_numpy(y.astype(np.float32))
         return x, y
