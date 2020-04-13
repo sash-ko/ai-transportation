@@ -92,6 +92,7 @@ if __name__ == "__main__":
     grid_size = (50, 50)
     batch_size = 5
     agg_by = "10min"
+    n_steps = 1
 
     # parse value range from command line
     min_lon, max_lon, min_lat, max_lat = re.findall("[-]?\d+.\d+", args.value_range)
@@ -100,21 +101,20 @@ if __name__ == "__main__":
 
     # train data
     train_data = prepare_data(args.train_dataset)
-    train_data = PointGridDataset(train_data, value_range, grid_size, n_steps=1)
+    train_data = PointGridDataset(train_data, value_range, grid_size, n_steps=n_steps)
     train_data_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
 
-    model = DemandNet(grid_size)
+    model = DemandNet(channels=n_steps, input_shape=grid_size)
 
     criterion = rmse_loss
 
-    print(f'\nTraining model')
+    print(f"\nTraining model")
     train(model, train_data_loader, criterion)
 
     # test data
     test_data = prepare_data(args.test_dataset)
-    test_data = PointGridDataset(test_data, value_range, grid_size, n_steps=1)
+    test_data = PointGridDataset(test_data, value_range, grid_size, n_steps=n_steps)
     test_data_loader = DataLoader(test_data, batch_size=batch_size, shuffle=True)
 
-    print(f'\nTesting model')
+    print(f"\nTesting model")
     test(model, test_data_loader, criterion)
-

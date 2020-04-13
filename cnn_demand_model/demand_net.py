@@ -9,11 +9,11 @@ class DemandNet(nn.Module):
     Spatial-temporal demand prediction
     """
 
-    def __init__(self, input_shape):
+    def __init__(self, channels, input_shape):
         super(DemandNet, self).__init__()
 
         # The first hidden layer convolves 16 filters of 5×5
-        self.conv1 = nn.Conv2d(1, 16, 5)
+        self.conv1 = nn.Conv2d(channels, 16, 5)
         output_shape = (
             calc_out_size(input_shape[0], 5),
             calc_out_size(input_shape[1], 5),
