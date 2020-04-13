@@ -14,6 +14,36 @@ def rmse_loss(y_pred, y):
     return torch.sqrt(torch.mean((y_pred - y) ** 2))
 
 
+def train(model, data_loader, criterion):
+    epochs = 2
+    learning_rate = 0.01
+
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+    for epoch in range(epochs):
+        print(f"Epoch \n{epoch}")
+
+        train_loss = []
+        for i, data in enumerate(data_loader):
+            inputs, labels = data
+
+            outputs = model(inputs)
+
+            labels = labels.view(labels.size(0), -1)
+            loss = criterion(outputs, labels)
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            train_loss.append(loss.item())
+
+            if i % 100 == 0:
+                print(
+                    f"[{epoch}, {i:4d}] training loss: {np.mean(train_loss[-100:]):.3f}"
+                )
+
+
 if __name__ == "__main__":
     # Example:
     # python cnn_demand_model/train_model.py --dataset data/train_sample.feather
@@ -29,8 +59,6 @@ if __name__ == "__main__":
     #### Params
     grid_size = (50, 50)
     batch_size = 5
-    epochs = 2
-    learning_rate = 0.01
     agg_by = "10min"
 
     # combination of "use_threads=False" and specified columns works faster than
@@ -57,27 +85,6 @@ if __name__ == "__main__":
     print(f"Training dataset size: {len(dataset)}")
 
     model = DemandNet(grid_size)
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     criterion = rmse_loss
-
-    for epoch in range(epochs):
-        print(f"Epoch \n{epoch}")
-
-        train_loss = []
-        for i, data in enumerate(data_loader):
-            inputs, labels = data
-
-            outputs = model(inputs)
-
-            labels = labels.view(labels.size(0), -1)
-            loss = criterion(outputs, labels)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            train_loss.append(loss.item())
-
-            if i % 100 == 0:
-                print(f"[{epoch}, {i:4d}] training loss: {np.mean(train_loss[-100:]):.3f}")
+    train(model, data_loader, criterion)
