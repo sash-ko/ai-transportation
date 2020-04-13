@@ -140,7 +140,8 @@ def save_to_feather(data, output_file):
 
     logging.info(f"Saving to {output_file}...")
 
-    data.reset_index(drop=True).to_feather(output_file)
+    data = data.sort_values(by='pickup_datetime').reset_index(drop=True)
+    data.to_feather(output_file)
 
 
 # TODO: file name as parameter
