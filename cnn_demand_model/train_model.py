@@ -16,7 +16,7 @@ def rmse_loss(y_pred, y):
 
 if __name__ == "__main__":
     # Example:
-    # python cnn_demand_model/train_model.py --dataset data/train_sample.feather 
+    # python cnn_demand_model/train_model.py --dataset data/train_sample.feather
     #   --value-range="((-74.0238037109375, -73.91867828369139), (40.6966552734375, 40.81862258911133))"
 
     parser = argparse.ArgumentParser(description="Model training parameters")
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     #### Params
-    grid_size = (25, 25)
+    grid_size = (50, 50)
     batch_size = 5
     epochs = 2
     learning_rate = 0.01
@@ -40,7 +40,7 @@ if __name__ == "__main__":
         columns=["pickup_lon", "pickup_lat", "pickup_datetime"],
         use_threads=False,
     )
-    print(f'Dataset shape {data.shape}')
+    print(f"Dataset shape {data.shape}")
 
     data["time"] = data.pickup_datetime.dt.round(agg_by)
     data["x"] = data.pickup_lon
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     # parse value range from command line
     min_lon, max_lon, min_lat, max_lat = re.findall("[-]?\d+.\d+", args.value_range)
     value_range = ((float(min_lon), float(max_lon)), (float(min_lat), float(max_lat)))
-    print(f'Bounding box: {value_range}')
+    print(f"Bounding box: {value_range}")
 
     dataset = PointGridDataset(data, value_range, grid_size, n_steps=1)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     criterion = rmse_loss
 
     for epoch in range(epochs):
-        print(f"\n{epoch+1} epoch")
+        print(f"Epoch \n{epoch}")
 
         train_loss = []
         for i, data in enumerate(data_loader):
@@ -80,4 +80,4 @@ if __name__ == "__main__":
             train_loss.append(loss.item())
 
             if i % 100 == 0:
-                print(f'({epoch}, {i}) training loss: {np.mean(train_loss[-100:])}')
+                print(f"[{epoch}, {i:4d}] training loss: {np.mean(train_loss[-100:]):.3f}")
