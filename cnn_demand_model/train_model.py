@@ -2,6 +2,7 @@ import logging
 import re
 import argparse
 import pandas as pd
+import numpy as np
 from torch.utils.data import DataLoader
 import torch
 
@@ -61,7 +62,7 @@ if __name__ == "__main__":
     criterion = rmse_loss
 
     for epoch in range(epochs):
-        print(f"\n{epoch+1} pass through the full training set")
+        print(f"\n{epoch+1} epoch")
 
         train_loss = []
         for i, data in enumerate(data_loader):
@@ -77,3 +78,6 @@ if __name__ == "__main__":
             optimizer.step()
 
             train_loss.append(loss.item())
+
+            if i % 100 == 0:
+                print(f'({epoch}, {i}) training loss: {np.mean(train_loss[-100:])}')
