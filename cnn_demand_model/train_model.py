@@ -18,18 +18,25 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", help="feather file with points")
     args = parser.parse_args()
 
-    data = pd.read_feather(args.dataset, use_threads=True)
-    data["time"] = data.pickup_datetime.dt.round("10min")
+    #### Params
+    grid_size = (25, 25)
+    batch_size = 5
+    epochs = 2
+    learning_rate = 0.01
+    agg_by = "10min"
+
+    # combination of "use_threads=False" and specified columns works faster than
+    # all other methods
+    data = pd.read_feather(
+        args.dataset,
+        columns=["pickup_lon", "pickup_lat", "pickup_datetime"],
+        use_threads=False,
+    )
+    data["time"] = data.pickup_datetime.dt.round(agg_by)
     data["x"] = data.pickup_lon
     data["y"] = data.pickup_lat
 
     value_range = ((data.x.min(), data.x.max()), (data.y.min(), data.y.max()))
-
-    #### Params
-    grid_size = (10, 10)
-    batch_size = 5
-    epochs = 2
-    learning_rate = 0.01
 
     dataset = PointGridDataset(data, value_range, grid_size, n_steps=1)
     data_loader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
