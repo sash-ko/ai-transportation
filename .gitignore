@@ -1,3 +1,5 @@
+*.code-workspace
+*.feather
 Untitled.ipynb
 .vscode/
 
