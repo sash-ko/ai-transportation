@@ -3,7 +3,6 @@ import json
 import argparse
 from shapely.geometry import shape
 from shapely.geometry.polygon import Polygon
-from shapely.geometry.point import Point
 import pandas as pd
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
@@ -84,9 +83,13 @@ def preprocess(
     data.trip_distance = data.trip_distance * 1.60934
 
     print(f"Filtering by distance...")
+
     data = data[
-        (data.trip_distance >= min_distance) & (data.trip_distance <= max_distance)
+        (data.trip_distance >= min_distance) & (data.trip_distance <= max_distance) &
+        (data.dropoff_longitude != 0) & (data.dropoff_latitude != 0) &
+        (data.pickup_longitude != 0) & (data.pickup_latitude != 0)
     ]
+
     print(f"Data shape {data.shape}")
 
     return data
@@ -95,33 +98,20 @@ def preprocess(
 def filter_by_shape(data: pd.DataFrame, geofence: Polygon) -> pd.DataFrame:
     """Remove trips outside of geofence. Filter by pickup and dropoff locations"""
 
+    logging.info('Filtering by bbox')
+    (min_lon, min_lat, max_lon, max_lat) = geofence.bounds
 
-    def flt(row, lon_col, lat_col):
-        return Point(row[lon_col], row[lat_col]).distance(geofence) == 0
+    data = data[
+        (data.pickup_longitude > min_lon) & (data.pickup_longitude < max_lon) &
+        (data.pickup_latitude > min_lat) & (data.pickup_latitude < max_lat) &
 
-    logging.info("Filtering by pickups...")
-    # data = data[pickup_data.geometry.within(geofence)]
-
-    idx = data[["pickup_longitude", "pickup_latitude"]].apply(
-        lambda row: flt(row, "pickup_longitude", "pickup_latitude"), axis=1
-    )
-    logging.info("Calculated index")
-
-    data = data[idx].reset_index(drop=True)
-
-    logging.info(f"Data shape {data.shape}")
-
-    logging.info("Filtering by dropoffs...")
-
-    idx = data.apply(
-        lambda row: flt(row, "dropoff_longitude", "dropoff_latitude"), axis=1
-    )
-    data = data[idx].reset_index(drop=True)
+        (data.dropoff_longitude > min_lon) & (data.dropoff_longitude < max_lon) &
+        (data.dropoff_latitude > min_lat) & (data.dropoff_latitude < max_lat)
+    ]
 
     logging.info(f"Data shape {data.shape}")
 
     return data
-    # return data.drop(["geometry"], axis=1)
 
 
 def save_to_feather(data, output_file):
