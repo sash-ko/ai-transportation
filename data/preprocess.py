@@ -3,7 +3,7 @@ import json
 import argparse
 from shapely.geometry import shape
 from shapely.geometry.polygon import Polygon
-import geopandas as gpd
+from shapely.geometry.point import Point
 import pandas as pd
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
@@ -95,29 +95,33 @@ def preprocess(
 def filter_by_shape(data: pd.DataFrame, geofence: Polygon) -> pd.DataFrame:
     """Remove trips outside of geofence. Filter by pickup and dropoff locations"""
 
-    logging.info("Creating pickup geometry...")
 
-    pickup_data = gpd.GeoDataFrame(
-        data,
-        geometry=gpd.points_from_xy(data["pickup_longitude"], data["pickup_latitude"]),
-    )
+    def flt(row, lon_col, lat_col):
+        return Point(row[lon_col], row[lat_col]).distance(geofence) == 0
 
     logging.info("Filtering by pickups...")
-    data = data[pickup_data.geometry.within(geofence)]
+    # data = data[pickup_data.geometry.within(geofence)]
 
-    logging.info("Creating dropoff geometry...")
-    dropoff_data = gpd.GeoDataFrame(
-        data,
-        geometry=gpd.points_from_xy(
-            data["dropoff_longitude"], data["dropoff_latitude"]
-        ),
+    idx = data[["pickup_longitude", "pickup_latitude"]].apply(
+        lambda row: flt(row, "pickup_longitude", "pickup_latitude"), axis=1
     )
+    logging.info("Calculated index")
 
-    logging.info("Filtering by dropoffs...")
-    data = data[dropoff_data.geometry.within(geofence)]
+    data = data[idx].reset_index(drop=True)
 
     logging.info(f"Data shape {data.shape}")
-    return data.drop(["geometry"], axis=1)
+
+    logging.info("Filtering by dropoffs...")
+
+    idx = data.apply(
+        lambda row: flt(row, "dropoff_longitude", "dropoff_latitude"), axis=1
+    )
+    data = data[idx].reset_index(drop=True)
+
+    logging.info(f"Data shape {data.shape}")
+
+    return data
+    # return data.drop(["geometry"], axis=1)
 
 
 def save_to_feather(data, output_file):
@@ -140,7 +144,7 @@ def save_to_feather(data, output_file):
 
     logging.info(f"Saving to {output_file}...")
 
-    data = data.sort_values(by='pickup_datetime').reset_index(drop=True)
+    data = data.sort_values(by="pickup_datetime").reset_index(drop=True)
     data.to_feather(output_file)
 
 
@@ -156,6 +160,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     data = read_data(args.data_file)
+
+    data = data.reset_index(drop=True)
+
     data = preprocess(data, args.min_distance, args.max_distance)
 
     geofence = read_polygon(args.geofence_file)
