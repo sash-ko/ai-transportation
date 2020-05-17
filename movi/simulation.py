@@ -46,11 +46,10 @@ def create_config(data_file):
             "fleet_seed": 2323,
             "clock_step": 25,
             "starting_time": "2015-02-01 12:00:00",
-            
         },
         "demand": {"data_file": data_file},
         "fleet": {"vehicles": 10},
-        "bookings": {"max_pending_time": 10, 'bookings_per_hour': 100},
+        "bookings": {"max_pending_time": 10, "bookings_per_hour": 100},
     }
 
 
@@ -110,7 +109,9 @@ if __name__ == "__main__":
     taxi_service = TaxiService(clock, dispatcher, router)
 
     num_steps = clock.time_to_clock_time(config["simulation"]["duration"], "m")
-    logging.info(f'Simulation steps: {num_steps} (one step = {clock.time_step}{clock.time_unit})')
+    logging.info(
+        f"Simulation steps: {num_steps} (one step = {clock.time_step}{clock.time_unit})"
+    )
 
     for i in range(num_steps):
 
