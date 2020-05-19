@@ -2,3 +2,5 @@ geojson
 h3
 shapely
 folium
+geopandas
+descartes
