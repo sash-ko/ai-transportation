@@ -19,11 +19,29 @@ def MAD_outliers(data: pd.Series) -> pd.Series:
     """
     num_std = 3
     theta = 1.4826
-    
+
     median = data.median()
     mad = np.median((data - median).abs())
-    
+
     lower = median - mad * (theta * num_std)
     upper = median + mad * (theta * num_std)
 
-    return ((data < lower) | (data > upper))
+    return (data < lower) | (data > upper)
+
+
+def date_counts(
+    data: pd.DataFrame, date_column: str = "datetime", date_index=False
+) -> pd.DataFrame:
+    """
+    Counts the number rows per date and returns a dataframe with
+    counts stored in column "total". Depending on "date_index" date stored
+    either as index or as a separate column in the new data frame
+    """
+
+    agg_data = data.groupby(data[date_column].dt.date)[date_column].count()
+    agg_data = agg_data.to_frame("total")
+
+    if not date_index:
+        agg_data = agg_data.reset_index()
+
+    return agg_data
